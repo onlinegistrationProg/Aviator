@@ -4,107 +4,181 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aviator Admin</title>
+
 <style>
-body{margin:0;font-family:Arial,sans-serif;background:#0D0D0F;color:#fff;}
-header{padding:10px;background:#111;color:#ff0033;text-align:center;}
-.container{padding:20px;}
-input,button{padding:10px;margin:5px;border-radius:5px;border:none;}
-button{cursor:pointer;}
-#userTable{width:100%; border-collapse: collapse; margin-top:20px;}
-#userTable th, #userTable td{border:1px solid #444; padding:5px;text-align:center;}
+    body { margin:0; background:#0D0D0F; font-family:Arial; color:white; }
+    header { background:#111; padding:18px; text-align:center; font-size:22px; color:#FF0033; }
+    .container { padding:20px; max-width:600px; margin:auto; }
+    input, button, textarea {
+        width:100%; padding:12px; margin-top:10px;
+        background:#1A1A1D; color:white; border:none; border-radius:6px;
+        font-size:16px;
+    }
+    button { background:#FF0033; cursor:pointer; font-weight:bold; }
+    button:hover { opacity:0.9; }
+    .section-title {
+        margin-top:30px;
+        padding-bottom:8px;
+        border-bottom:1px solid #333;
+        color:#FF0033;
+        font-size:18px;
+    }
+    #adminPanel { display:none; margin-top:20px; }
 </style>
 </head>
+
 <body>
-<header><h1>Aviator Admin Panel</h1></header>
+
+<header>AVIATOR ADMIN PANEL</header>
+
 <div class="container">
-<h3>Login</h3>
-<input type="text" id="adminUser" placeholder="Admin Username"><br>
-<input type="password" id="adminPass" placeholder="Admin Password"><br>
-<button id="adminLogin">Login</button>
-<p id="adminMessage" style="color:#ff0033;"></p>
 
-<div id="adminControls" style="display:none;">
-<h3>Auto-Changing Admin Code (60s)</h3>
-<p id="adminCode" style="font-size:20px;color:#0f0;"></p>
+    <!-- LOGIN -->
+    <h3>Admin Login</h3>
+    <input type="text" id="adminUser" placeholder="Username">
+    <input type="password" id="adminPass" placeholder="Password">
+    <button onclick="loginAdmin()">Login</button>
 
-<h3>Next Round Outcome Preview</h3>
-<p id="nextOutcome">-</p>
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel">
 
-<h3>Manage Users</h3>
-<table id="userTable">
-<tr><th>Username</th><th>Balance</th><th>Frozen</th><th>Actions</th></tr>
-</table>
-</div>
+        <!-- PLAYER LOGIN CONTROL -->
+        <h3 class="section-title">Player Login Control</h3>
+        <input type="text" id="playerUser" placeholder="Player Username">
+        <input type="text" id="playerPass" placeholder="Player Password">
+        <button onclick="savePlayerLogin()">Save Player Login</button>
+
+        <!-- PLAYER BALANCE CONTROL -->
+        <h3 class="section-title">Player Balance</h3>
+        <input type="number" id="playerBalance" placeholder="Set Player Balance">
+        <button onclick="saveBalance()">Update Balance</button>
+        <button onclick="resetPlayer()">Reset Player</button>
+
+        <!-- FORCE NEXT MULTIPLIER -->
+        <h3 class="section-title">Force Next Multiplier</h3>
+        <input type="text" id="forceMultiplier" placeholder="Example: 1, 2.5, 50">
+        <button onclick="saveForcedMultiplier()">Apply Forced Multiplier</button>
+
+        <!-- DAILY OUTCOMES -->
+        <h3 class="section-title">Daily Outcomes (Pre-Results)</h3>
+        <button onclick="generateOutcomes()">Auto Generate Outcomes</button>
+        <textarea id="outcomeList" rows="6" placeholder="Edit outcomes manually..."></textarea>
+        <button onclick="saveOutcomes()">Save Outcomes</button>
+
+        <!-- DEPOSIT CODE -->
+        <h3 class="section-title">Player Deposit Code</h3>
+        <div id="depositBox" style="padding:12px;background:#1A1A1D;border-radius:6px;font-size:20px;text-align:center;">
+            Code: <span id="depositCode">------</span><br>
+            <small style="color:#aaa;">Next change in <span id="timer">60</span>s</small>
+        </div>
+
+    </div>
 </div>
 
 <script>
-const ADMIN_USERNAME='admin';
-const ADMIN_PASSWORD='rk1234';
-let adminCode='';
-const adminLogin=document.getElementById('adminLogin');
-const adminMessage=document.getElementById('adminMessage');
-const adminControls=document.getElementById('adminControls');
-const adminCodeDisplay=document.getElementById('adminCode');
-const nextOutcomeDisplay=document.getElementById('nextOutcome');
-let users = JSON.parse(localStorage.getItem('aviatorUsers'))||{};
+// ===================== ADMIN LOGIN ===================== //
+function loginAdmin() {
+    const u = document.getElementById("adminUser").value;
+    const p = document.getElementById("adminPass").value;
 
-function generateAdminCode(){
-  adminCode=Math.random().toString(36).substr(2,6).toUpperCase();
-  adminCodeDisplay.textContent=adminCode;
-  localStorage.setItem('adminCode', adminCode);
+    if (u === "Kibet Riskid" && p === "Kwenik254$") {
+        document.getElementById("adminPanel").style.display = "block";
+        alert("Admin Logged In Successfully");
+        startDepositSystem();
+        attachManualDepositRefresh();
+    } else {
+        alert("Incorrect Login");
+    }
 }
 
-function generateNextOutcome(){
-  let rand=Math.random()*100;
-  let outcome;
-  if(rand<40) outcome=(1.0 + Math.random()*0.5).toFixed(2);
-  else if(rand<75) outcome=(1.5 + Math.random()*1.5).toFixed(2);
-  else if(rand<95) outcome=(3 + Math.random()*7).toFixed(2);
-  else outcome=(10 + Math.random()*40).toFixed(2);
-  nextOutcomeDisplay.textContent=outcome+'x';
+// ===================== PLAYER LOGIN CONTROL ===================== //
+function savePlayerLogin() {
+    localStorage.setItem("player_username", document.getElementById("playerUser").value);
+    localStorage.setItem("player_password", document.getElementById("playerPass").value);
+    alert("Player Login Saved");
 }
 
-function refreshTable(){
-  users = JSON.parse(localStorage.getItem('aviatorUsers'))||{};
-  const table = document.getElementById('userTable');
-  table.innerHTML='<tr><th>Username</th><th>Balance</th><th>Frozen</th><th>Actions</th></tr>';
-  Object.keys(users).forEach(u=>{
-    let row=table.insertRow();
-    row.insertCell(0).textContent=u;
-    row.insertCell(1).textContent=users[u].balance;
-    row.insertCell(2).textContent=users[u].frozen;
-    let actions=row.insertCell(3);
-    let resetBtn=document.createElement('button');
-    resetBtn.textContent='Reset Password';
-    resetBtn.onclick=()=>{
-      let newPass=prompt('New password for '+u);
-      if(newPass){users[u].password=newPass; localStorage.setItem('aviatorUsers',JSON.stringify(users)); refreshTable();}
-    };
-    let freezeBtn=document.createElement('button');
-    freezeBtn.textContent=users[u].frozen?'Unfreeze':'Freeze';
-    freezeBtn.onclick=()=>{
-      users[u].frozen=!users[u].frozen; localStorage.setItem('aviatorUsers',JSON.stringify(users)); refreshTable();
-    };
-    actions.appendChild(resetBtn);
-    actions.appendChild(freezeBtn);
-  });
+// ===================== PLAYER BALANCE ===================== //
+function saveBalance() {
+    let bal = document.getElementById("playerBalance").value;
+    localStorage.setItem("player_balance", bal);
+    alert("Balance Updated");
 }
 
-adminLogin.addEventListener('click',()=>{
-  const u=document.getElementById('adminUser').value;
-  const p=document.getElementById('adminPass').value;
-  if(u===ADMIN_USERNAME && p===ADMIN_PASSWORD){
-    adminControls.style.display='block';
-    adminMessage.textContent='';
-    generateAdminCode();
-    generateNextOutcome();
-    refreshTable();
-    setInterval(generateAdminCode,60000);
-    setInterval(generateNextOutcome,60000);
-  } else {
-    adminMessage.textContent='Wrong credentials';
-  }
-});
+function resetPlayer() {
+    localStorage.removeItem("player_balance");
+    localStorage.removeItem("player_username");
+    localStorage.removeItem("player_password");
+    alert("Player Reset Complete");
+}
+
+// ===================== FORCE NEXT MULTIPLIER ===================== //
+function saveForcedMultiplier() {
+    localStorage.setItem("forced_multiplier", document.getElementById("forceMultiplier").value);
+    alert("Next Multiplier Forced Successfully");
+}
+
+// ===================== DAILY OUTCOMES ===================== //
+function generateOutcomes() {
+    let list = [];
+    for (let i = 0; i < 20; i++) {
+        let r = (Math.random() * 50 + 1).toFixed(2);
+        list.push("x" + r);
+    }
+    document.getElementById("outcomeList").value = list.join("\n");
+    alert("New Outcomes Generated");
+}
+
+function saveOutcomes() {
+    let outcomes = document.getElementById("outcomeList").value;
+    localStorage.setItem("daily_outcomes", outcomes);
+    alert("Outcomes Saved");
+}
+
+// ===================== AUTO + MANUAL DEPOSIT CODE ===================== //
+
+let depositTimer = 60;
+let timerInterval;
+
+// Generate a 6-digit random code
+function generateDepositCode() {
+    let code = Math.floor(100000 + Math.random() * 900000);
+    localStorage.setItem("deposit_code", code);
+    document.getElementById("depositCode").innerText = code;
+}
+
+// Start the auto timer
+function startDepositTimer() {
+    clearInterval(timerInterval);
+    depositTimer = 60;
+
+    timerInterval = setInterval(() => {
+        depositTimer--;
+        document.getElementById("timer").innerText = depositTimer;
+
+        if (depositTimer <= 0) {
+            generateDepositCode();
+            depositTimer = 60;
+        }
+    }, 1000);
+}
+
+function startDepositSystem() {
+    generateDepositCode();
+    startDepositTimer();
+}
+
+// Manual change on ANY button press
+function attachManualDepositRefresh() {
+    const buttons = document.querySelectorAll("button");
+    buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            generateDepositCode();  
+            startDepositTimer();     
+        });
+    });
+}
 </script>
+
 </body>
 </html>
