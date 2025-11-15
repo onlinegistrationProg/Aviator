@@ -7,98 +7,112 @@
 <style>
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
   background: #0d0d0f;
   color: #fff;
+  font-family: Arial, sans-serif;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
 }
-.login-box {
-  background: #111;
-  padding: 30px;
-  border-radius: 10px;
-  width: 300px;
-  text-align: center;
-  box-shadow: 0 0 15px #ff0033;
-}
-.login-box h2 {
-  margin-bottom: 20px;
-  color: #ff0033;
-}
-.login-box input {
+.container {
   width: 90%;
-  padding: 10px;
-  margin: 10px 0;
-  border-radius: 5px;
+  max-width: 400px;
+  background: #111;
+  padding: 20px;
+  border-radius: 10px;
+}
+h2 { text-align: center; }
+input, button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
   border: none;
+  border-radius: 6px;
 }
-.login-box button {
-  width: 95%;
-  padding: 10px;
-  background: #ff0033;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.login-box button:hover {
-  background: #e60029;
-}
-.error {
-  color: #ff0033;
-  margin-top: 10px;
-}
+input { background: #222; color: #fff; }
+button { background: #fbbf24; color: #000; font-weight: bold; cursor: pointer; }
+.switch { text-align: center; cursor: pointer; margin-top: 10px; color: #4fa3f7; }
+.error { color: #ff5555; font-size: 14px; text-align:center; }
 </style>
 </head>
 <body>
-<div class="login-box">
-  <h2>Aviator Login</h2>
-  <input type="text" id="phone" placeholder="Phone Number">
-  <input type="password" id="password" placeholder="Password">
-  <button onclick="login()">Login</button>
-  <p class="error" id="error"></p>
+
+<div class="container">
+  <h2 id="title">Player Login</h2>
+
+  <input id="phone" type="text" placeholder="Phone Number">
+  <input id="password" type="password" placeholder="Password">
+  <input id="confirm" type="password" placeholder="Confirm Password (Only for registration)" style="display:none;">
+
+  <p class="error" id="msg"></p>
+
+  <button onclick="submitForm()" id="submitBtn">Login</button>
+
+  <p class="switch" onclick="toggleMode()" id="switchText">Don't have account? Register</p>
+
+  <p class="switch" onclick="adminLogin()">Admin Login</p>
 </div>
 
 <script>
-// Admin credentials
-const adminUser = "Riskid Kibet";
-const adminPass = "Kwenik254$";
+let registerMode = false;
 
-// Auto redirect if logged in
-if(localStorage.getItem("loggedIn") === "player") window.location.href = "game.html";
-if(localStorage.getItem("loggedIn") === "admin") window.location.href = "admin.html";
+function toggleMode() {
+  registerMode = !registerMode;
+  document.getElementById("confirm").style.display = registerMode ? "block" : "none";
+  document.getElementById("submitBtn").innerText = registerMode ? "Register" : "Login";
+  document.getElementById("title").innerText = registerMode ? "Register Account" : "Player Login";
+  document.getElementById("switchText").innerText = registerMode ? "Already have account? Login" : "Don't have account? Register";
+}
 
-function login() {
-  const phone = document.getElementById("phone").value.trim();
-  const pass = document.getElementById("password").value.trim();
-  const error = document.getElementById("error");
+function adminLogin() {
+  const usr = prompt("Enter Admin Username:");
+  const pass = prompt("Enter Admin Password:");
+  if (usr === "Riskid Kibet" && pass === "Kwenik254$") {
+    localStorage.setItem("admin_logged", "yes");
+    window.location = "admin.html";
+  } else {
+    alert("Wrong admin credentials!");
+  }
+}
 
-  if(phone === "" || pass === "") { error.textContent = "All fields required"; return; }
+function submitForm() {
+  let phone = document.getElementById("phone").value.trim();
+  let pass = document.getElementById("password").value.trim();
+  let msg = document.getElementById("msg");
 
-  // Admin login
-  if(phone === adminUser && pass === adminPass) {
-    localStorage.setItem("loggedIn","admin");
-    window.location.href = "admin.html";
+  if (phone.length < 6) { msg.innerText = "Enter valid phone."; return; }
+  if (pass.length < 3) { msg.innerText = "Password too short."; return; }
+
+  if (registerMode) {
+    let confirmPass = document.getElementById("confirm").value.trim();
+    if (pass !== confirmPass) {
+      msg.innerText = "Passwords do not match";
+      return;
+    }
+
+    if (localStorage.getItem("user_" + phone)) {
+      msg.innerText = "Phone already registered";
+      return;
+    }
+
+    let user = { phone, pass, balance: 0 };
+    localStorage.setItem("user_" + phone, JSON.stringify(user));
+    msg.innerText = "Registration successful! Login now.";
+    toggleMode();
     return;
   }
 
-  // Player login
-  let players = JSON.parse(localStorage.getItem("players") || "[]");
-  let player = players.find(p => p.phone === phone && p.password === pass);
-  if(!player) {
-    player = { phone, password: pass, balance: 1000, blocked: false };
-    players.push(player);
-    localStorage.setItem("players", JSON.stringify(players));
-  }
-  if(player.blocked) { error.textContent = "You are blocked by admin"; return; }
+  let data = localStorage.getItem("user_" + phone);
+  if (!data) { msg.innerText = "Account not found."; return; }
 
-  localStorage.setItem("currentPlayer", JSON.stringify(player));
-  localStorage.setItem("loggedIn","player");
-  window.location.href="game.html";
+  let user = JSON.parse(data);
+  if (user.pass !== pass) { msg.innerText = "Wrong password."; return; }
+
+  localStorage.setItem("loggedUser", phone);
+  window.location = "game.html";
 }
 </script>
+
 </body>
 </html>
