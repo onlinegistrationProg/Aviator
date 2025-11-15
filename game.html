@@ -5,125 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aviator Game</title>
 <style>
-body { margin:0; font-family: Arial, sans-serif; background:#0d0d0f; color:#fff;}
-header{background:#111; padding:10px; text-align:center; color:#ff0033; font-size:24px;}
-.container{padding:20px;}
-button{padding:10px 20px; margin:5px; border:none; border-radius:5px; cursor:pointer;}
-#stakeBtn{background:#ff0033; color:#fff;}
-#cashoutBtn{background:#00ff33; color:#000;}
-.balance{margin:10px 0; font-size:18px;}
-.deposit{background:#111; color:#ff0033; padding:10px; border:1px solid #ff0033; cursor:pointer; margin-top:10px; border-radius:5px;}
-.multiplier{font-size:48px; color:#ff0033; text-align:center; margin:20px 0;}
-.message{margin:10px 0; color:#00ff33; text-align:center;}
+body{margin:0;font-family:Arial,sans-serif;background:#0D0D0F;color:#fff;overflow:hidden;}
+#aviatorCanvas{display:block;width:100vw;height:100vh;background:#0D0D0F;}
+#controls{position:absolute;bottom:20px;width:100%;display:flex;justify-content:space-between;padding:0 20px;}
+button{padding:10px 20px;border:none;border-radius:5px;cursor:pointer;}
+#depositBtn{background:#28a745;color:#fff;}
+#stakeBtn{background:#007bff;color:#fff;}
+#results{position:absolute;bottom:80px;right:20px;background:rgba(0,0,0,0.6);padding:10px;border-radius:5px;max-width:200px;font-size:14px;}
+#balance{position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.6);padding:10px;border-radius:5px;font-size:16px;}
+#pendingDeposits{position:absolute;top:60px;right:20px;background:rgba(255,255,0,0.6);padding:10px;border-radius:5px;font-size:14px;}
 </style>
 </head>
 <body>
-<header>Aviator</header>
-<div class="container">
-  <div class="balance">Balance: <span id="balance">0</span> coins</div>
-  <input type="number" id="stake" placeholder="Enter stake amount" min="1">
-  <button id="stakeBtn" onclick="startRound()">Stake</button>
-  <button id="cashoutBtn" onclick="cashout()" disabled>Cashout</button>
-  <div class="multiplier" id="multiplier">×1.00</div>
-  <div class="message" id="message"></div>
-  <button class="deposit" onclick="requestDeposit()">Request Deposit</button>
-  <button style="margin-top:20px;" onclick="logout()">Logout</button>
+<canvas id="aviatorCanvas"></canvas>
+<div id="balance">Balance: <span id="balAmount">0</span></div>
+<div id="pendingDeposits">Pending Deposits: <span id="pendingAmount">0</span></div>
+<div id="controls">
+<button id="depositBtn" onclick="requestDeposit()">Deposit</button>
+<button id="stakeBtn" onclick="stake()">Stake</button>
 </div>
+<div id="results"><strong>Last 5 results:</strong><ul id="lastResults"></ul></div>
 
 <script>
-let player = JSON.parse(localStorage.getItem("currentPlayer"));
-document.getElementById("balance").textContent = player.balance;
-let interval, multiplier=1, staking=false, stakeAmount=0;
+// ----- Balance & Stakes -----
+let balance=0,pendingDeposits=0,stakes=[],lastResults=[];
 
-// Daily rounds storage
-let rounds = JSON.parse(localStorage.getItem("dailyRounds") || "[]");
-let roundIndex = rounds.length;
+// ----- Aviator -----
+const canvas=document.getElementById('aviatorCanvas');const ctx=canvas.getContext('2d');canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+let aviatorY=canvas.height-50,aviatorSpeed=2,currentMultiplier=1.0;
 
-function generateRound() {
-  const crash = +(Math.random()*50 + 1).toFixed(2); // 1.00 - 50.00
-  const startTime = new Date().toLocaleTimeString();
-  let round = { round: roundIndex+1, crash, startTime, stakes: [] };
-  rounds.push(round);
-  localStorage.setItem("dailyRounds", JSON.stringify(rounds));
-  return round;
+// ----- Future Multipliers -----
+let futureMultipliers=JSON.parse(localStorage.getItem('futureMultipliers'))||[];
+function getNextMultiplier(){
+  let now=new Date();
+  let timeStr=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0')+":"+now.getSeconds().toString().padStart(2,'0');
+  for(let i=0;i<futureMultipliers.length;i++){if(futureMultipliers[i].time>=timeStr) return futureMultipliers[i].multiplier;}
+  return +(Math.random()*5+1).toFixed(2);
 }
+let bustMultiplier=getNextMultiplier();
 
-function startRound() {
-  stakeAmount = Number(document.getElementById("stake").value);
-  if(stakeAmount <= 0 || stakeAmount > player.balance) { alert("Invalid stake"); return; }
-  staking = true;
-  document.getElementById("stakeBtn").disabled = true;
-  document.getElementById("cashoutBtn").disabled = false;
-  multiplier = 1;
-  document.getElementById("multiplier").textContent = `×${multiplier.toFixed(2)}`;
-  document.getElementById("message").textContent = "Game started...";
-  
-  // Generate or get current round
-  let round = rounds[roundIndex] || generateRound();
-  round.stakes.push({ phone: player.phone, amount: stakeAmount, cashedOut: false });
-  localStorage.setItem("dailyRounds", JSON.stringify(rounds));
+// ----- Draw / Update -----
+function drawAviator(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#ff0033';ctx.beginPath();ctx.arc(canvas.width/2,aviatorY,20,0,Math.PI*2);ctx.fill();ctx.fillStyle='#00ff00';ctx.font="20px Arial";ctx.fillText(currentMultiplier.toFixed(2)+"×",canvas.width/2-20,aviatorY-30);}
+function updateAviator(){aviatorY-=aviatorSpeed;currentMultiplier+=0.01;
+if(currentMultiplier.toFixed(2)>=bustMultiplier){lastResults.push(bustMultiplier.toFixed(2)+"×");if(lastResults.length>5) lastResults.shift();updateLastResults();
+aviatorY=canvas.height-50;currentMultiplier=1.0;bustMultiplier=getNextMultiplier();stakes.forEach(s=>s.active=false);}
+stakes.forEach(s=>{if(s.active&&currentMultiplier.toFixed(2)>=s.cashoutMultiplier){balance+=s.amount*s.cashoutMultiplier;s.active=false;updateBalance();}});
+drawAviator();requestAnimationFrame(updateAviator);}
+function updateBalance(){document.getElementById('balAmount').textContent=balance.toFixed(2);}
+function updatePendingDeposits(){document.getElementById('pendingAmount').textContent=pendingDeposits.toFixed(2);}
+function updateLastResults(){const ul=document.getElementById('lastResults');ul.innerHTML="";lastResults.forEach(r=>{const li=document.createElement('li');li.textContent=r;ul.appendChild(li);});}
 
-  interval = setInterval(() => updateMultiplier(round), 100);
-}
+// ----- Deposit & Stake -----
+function requestDeposit(){let amount=parseFloat(prompt("Enter deposit amount:"));if(amount&&amount>0){pendingDeposits+=amount;updatePendingDeposits();
+let deposits=JSON.parse(localStorage.getItem('pendingDeposits'))||[];deposits.push({amount:amount,user:localStorage.getItem('loggedInUser')||"Player"});localStorage.setItem('pendingDeposits',JSON.stringify(deposits));
+alert("Deposit request sent for admin approval.");}}
+function stake(){let amount=parseFloat(prompt("Enter stake amount:"));if(amount&&amount>0&&amount<=balance){balance-=amount;updateBalance();stakes.push({amount:amount,active:true,cashoutMultiplier:bustMultiplier});alert("Staked "+amount+" for this round!");}else{alert("Invalid stake or insufficient balance!");}}
 
-function updateMultiplier(round) {
-  multiplier += Math.random()*0.05;
-  document.getElementById("multiplier").textContent = `×${multiplier.toFixed(2)}`;
-  if(multiplier >= round.crash) endRound(false, round);
-}
+// ----- Listen for approved deposits -----
+setInterval(()=>{
+  let approved=JSON.parse(localStorage.getItem('approvedDeposits'))||[];
+  approved.forEach(d=>{if(d.user===(localStorage.getItem('loggedInUser')||"Player")){balance+=d.amount;pendingDeposits-=d.amount;}});
+  localStorage.setItem('approvedDeposits',JSON.stringify(approved.filter(d=>d.user!==(localStorage.getItem('loggedInUser')||"Player"))));
+  updateBalance(); updatePendingDeposits();
+},1000);
 
-function cashout() {
-  if(!staking) return;
-  let winnings = stakeAmount * multiplier;
-  player.balance += winnings - stakeAmount;
-  updatePlayer();
-  endRound(true, null, multiplier);
-}
-
-function endRound(cashedOut, round=null, cashedMultiplier=0) {
-  clearInterval(interval);
-  staking=false;
-  document.getElementById("stakeBtn").disabled = false;
-  document.getElementById("cashoutBtn").disabled = true;
-
-  if(cashedOut) {
-    document.getElementById("message").textContent = `You cashed out: ${ (stakeAmount*cashedMultiplier).toFixed(2) } coins!`;
-  } else {
-    player.balance -= stakeAmount;
-    updatePlayer();
-    document.getElementById("message").textContent = `Crashed at ×${round.crash}! You lost your stake.`;
-  }
-  document.getElementById("balance").textContent = player.balance.toFixed(2);
-  roundIndex++;
-  if(round && !cashedOut) {
-    // mark stakes lost
-    round.stakes.forEach(s => { if(s.phone===player.phone) s.cashedOut=false; });
-    localStorage.setItem("dailyRounds", JSON.stringify(rounds));
-  }
-}
-
-function updatePlayer() {
-  let players = JSON.parse(localStorage.getItem("players"));
-  let index = players.findIndex(p => p.phone === player.phone);
-  players[index] = player;
-  localStorage.setItem("players", JSON.stringify(players));
-  localStorage.setItem("currentPlayer", JSON.stringify(player));
-}
-
-function requestDeposit() {
-  let amount = prompt("Enter deposit amount:");
-  if(!amount || amount <=0) return;
-  let deposits = JSON.parse(localStorage.getItem("deposits") || "[]");
-  deposits.push({ phone: player.phone, amount:Number(amount), status:"pending" });
-  localStorage.setItem("deposits", JSON.stringify(deposits));
-  alert("Deposit request sent. Wait for admin approval.");
-}
-
-function logout() {
-  localStorage.removeItem("loggedIn");
-  localStorage.removeItem("currentPlayer");
-  window.location.href="index.html";
-}
+// ----- Start -----
+updateAviator();
 </script>
 </body>
 </html>
