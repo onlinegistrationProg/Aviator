@@ -1,227 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Aviator — Player</title>
 <style>
-  :root{--bg:#0d0d0f;--panel:#111;--muted:#777;--accent:#ff3344;--green:#25b24a}
-  body{margin:0;background:var(--bg);color:#fff;font-family:Arial,Helvetica,sans-serif;min-height:100vh}
-  .wrap{max-width:420px;margin:12px auto;padding:10px}
-  header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0f0f12;border-radius:8px}
-  .logo{font-weight:700;color:var(--accent)}
-  .balance{color:#2fdf5a;font-weight:700}
-  .game{background:linear-gradient(180deg,#0c0c0d,#141416);border-radius:12px;padding:12px;margin-top:12px;box-shadow:0 6px 20px rgba(0,0,0,.6)}
-  .big-mult{font-size:64px;text-align:center;margin:6px 0;font-weight:800}
-  .plane{height:10px;background:linear-gradient(90deg,#ff3344,#ff6b6b);border-radius:8px;margin-bottom:8px}
-  .controls{display:flex;gap:12px;margin-top:12px;align-items:center;justify-content:space-between}
-  .betbox{flex:1;background:var(--panel);padding:12px;border-radius:10px}
-  .btn{padding:14px 18px;border-radius:10px;border:none;cursor:pointer}
-  .green{background:var(--green);color:#fff;font-weight:700}
-  .muted{color:var(--muted);font-size:13px}
-  .small{font-size:13px}
-  .bets-list{margin-top:12px;background:var(--panel);padding:10px;border-radius:10px}
-  .row{display:flex;gap:8px;align-items:center}
-  .pill{background:#1b1b1d;padding:8px 12px;border-radius:999px}
-  .center{text-align:center}
-  footer{margin-top:14px;text-align:center;color:var(--muted);font-size:13px}
-  .result-history{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-  .hist-item{background:#111;padding:6px 8px;border-radius:8px}
+  body {margin:0;background:#0d0d0f;color:#fff;font-family:Arial,Helvetica,sans-serif}
+  .wrap{max-width:900px;margin:14px auto;padding:12px}
+  h2{color:#ff3344}
+  .panel{background:#111;padding:12px;border-radius:10px;margin-top:12px}
+  input, button {padding:8px;border-radius:6px;border:none;margin:4px 0;width:100%;}
+  button {cursor:pointer;color:#fff;}
+  .green{background:#25b24a;}
+  .red{background:#ff5555;}
+  #cashOut {display:none;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="logo">Aviator</div>
-    <div class="balance" id="balTxt">0.00 KES</div>
-  </header>
+  <h2>Aviator — Player</h2>
 
-  <div class="game" id="gameArea">
-    <div class="plane"></div>
-    <div class="center"><div class="big-mult" id="multiplier">--</div></div>
-    <div class="center muted" id="modeTag">FUN MODE</div>
-
-    <div class="bets-list">
-      <div class="row">
-        <div class="betbox">
-          <div class="row" style="justify-content:space-between">
-            <div class="small muted">Bet</div>
-            <div class="small muted">Auto</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-            <button class="pill" id="dec">-</button>
-            <div id="betAmount" style="min-width:70px;text-align:center">10.00</div>
-            <button class="pill" id="inc">+</button>
-            <div style="flex:1"></div>
-            <button id="placeBtn" class="btn green">Bet<br><span id="btnAmount">10.00 KES</span></button>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <div class="pill small">100</div>
-            <div class="pill small">200</div>
-            <div class="pill small">500</div>
-            <div class="pill small">10000</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-top:12px">
-        <div class="muted small">All Bets</div>
-        <div style="height:6px"></div>
-        <div id="betsPlaced"></div>
-      </div>
-    </div>
-
-    <div style="margin-top:12px">
-      <div class="muted small">Rounds (today)</div>
-      <div class="result-history" id="roundsPreview"></div>
-    </div>
+  <!-- LOGIN / REGISTER -->
+  <div class="panel" id="loginPanel">
+    <input type="text" id="phone" placeholder="Phone Number" autocomplete="tel">
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+    <input type="password" id="confirm" placeholder="Confirm Password" autocomplete="new-password">
+    <button id="loginBtn">Login / Register</button>
   </div>
 
-  <footer>We keep your data secure and confidential.</footer>
+  <!-- PLAYER PANEL -->
+  <div class="panel" id="playerPanel" style="display:none;">
+    <h3>Balance: <span id="balance">0</span></h3>
+
+    <!-- Deposit Request -->
+    <div class="panel">
+      <h4>Deposit Request</h4>
+      <input type="number" id="depAmount" placeholder="Amount">
+      <button id="requestDep">Request Deposit</button>
+    </div>
+
+    <!-- Stake / Round -->
+    <div class="panel">
+      <h4>Stake / Round</h4>
+      <input type="number" id="stakeAmount" placeholder="Stake Amount">
+      <button id="startRound">Start Round</button>
+      <button id="cashOut">Cash Out</button>
+      <p>Current Multiplier: <span id="multiplier">1.00x</span></p>
+    </div>
+
+    <!-- Past Multipliers -->
+    <div class="panel">
+      <h4>Past Multipliers</h4>
+      <ul id="pastRounds"></ul>
+    </div>
+
+    <button id="logoutBtn" class="red">Logout</button>
+  </div>
 </div>
 
 <script>
-/* ====== Core logic implementing the requested features ======
- - login via localStorage
- - daily deterministic rounds (same for all players) saved by date
- - round results generation ensures uniqueness per day (no duplicates)
- - placing bets, auto cashout not fully complex but supports placing and immediate resolution when round advances
- - admin deposit approval will add to user balance (admin.html)
- - auto update multiplier simulation: rounds progress every 7s (demo speed) but deterministic
- - multipliers sequence won't repeat (unique within day's sequence)
-============================================================*/
+let currentUser = null;
+let roundInterval = null;
+let currentMultiplier = 1;
+let stakedAmount = 0;
 
-const userKey = localStorage.getItem('aviator_current')
-if(!userKey){location.href='login.html'}
-const users = JSON.parse(localStorage.getItem('aviator_users')||'{}')
-const me = users[userKey] || {balance:0,displayName:userKey}
-const balanceElem = document.getElementById('balTxt')
-const multiplierElem = document.getElementById('multiplier')
-const roundsPreview = document.getElementById('roundsPreview')
-const betsPlaced = document.getElementById('betsPlaced')
+// UTILITIES
+function saveUsers(users){ localStorage.setItem('aviator_users', JSON.stringify(users)) }
+function getUsers(){ return JSON.parse(localStorage.getItem('aviator_users')||'{}') }
+function saveRounds(rounds){ localStorage.setItem('aviator_rounds_'+new Date().toISOString().slice(0,10), JSON.stringify(rounds)) }
+function getRounds(){ return JSON.parse(localStorage.getItem('aviator_rounds_'+new Date().toISOString().slice(0,10))||'[]') }
 
-function fmt(n){return Number(n).toFixed(2)+' KES'}
-function saveUsers(){localStorage.setItem('aviator_users', JSON.stringify(users))}
-
-balanceElem.textContent = fmt(me.balance||0)
-
-// --- Daily deterministic rounds ---
-function getTodayKey(){
-  const d = new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()
-}
-function generateTodaysRounds(){
-  const key = 'aviator_rounds_'+getTodayKey()
-  let rounds = JSON.parse(localStorage.getItem(key)||'null')
-  if(rounds) return rounds
-  // create unique multipliers for the day
-  const N = 720 // number of rounds per day
-  const set = new Set()
-  const arr = []
-  let seed = Number(getTodayKey().split('-').join('')) + 12345
-  function rnd(){ seed = (seed * 9301 + 49297) % 233280; return seed/233280 }
-  while(arr.length < N){
-    // sample multiplier 1.05 - 25.00 (skewed)
-    const x = Math.max(1.01, (1 + Math.pow(rnd(),1.8)*24).toFixed(2))
-    // ensure uniqueness up to 2 decimals; if collision, try again
-    if(!set.has(x)){
-      set.add(x); arr.push(Number(x))
-    }
+// LOGIN / REGISTER
+document.getElementById('loginBtn').addEventListener('click', ()=>{
+  const phone = document.getElementById('phone').value.trim();
+  const pass = document.getElementById('password').value;
+  const confirm = document.getElementById('confirm').value;
+  if(!phone || !pass) return alert('Enter phone and password');
+  const users = getUsers();
+  if(!users[phone]){
+    if(!confirm) return alert('Confirm password for registration');
+    if(pass !== confirm) return alert('Passwords do not match');
+    users[phone] = {password: pass, balance:0};
+    saveUsers(users);
+  } else {
+    if(users[phone].password !== pass) return alert('Incorrect password');
   }
-  localStorage.setItem(key, JSON.stringify(arr))
-  return arr
-}
-const todaysRounds = generateTodaysRounds()
-function renderRoundsPreview(){
-  roundsPreview.innerHTML = ''
-  for(let i=0;i<12;i++){
-    const s=document.createElement('div');s.className='hist-item';s.textContent=todaysRounds[i]+'x'; roundsPreview.appendChild(s)
-  }
-}
-renderRoundsPreview()
+  currentUser = phone;
+  localStorage.setItem('aviator_last_user', currentUser);
+  document.getElementById('loginPanel').style.display='none';
+  document.getElementById('playerPanel').style.display='block';
+  updateBalance();
+  loadPastRounds();
+});
 
-// --- Round progression & UI ---
-let roundIndex = 0
-let tickInterval = 7000 // 7s per round for demo (adjust as needed)
-let currentPhase = 'idle' // 'running' or 'idle'
-let placedBets = []
+// LOGOUT
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  currentUser = null;
+  document.getElementById('playerPanel').style.display='none';
+  document.getElementById('loginPanel').style.display='block';
+  document.getElementById('password').value='';
+  document.getElementById('confirm').value='';
+});
 
-function startRounds(){
-  updateRound()
-  window._roundTimer = setInterval(()=> {
-    advanceRound()
-  }, tickInterval)
+// UPDATE BALANCE
+function updateBalance(){
+  const users = getUsers();
+  document.getElementById('balance').textContent = users[currentUser]?.balance || 0;
 }
-function updateRound(){
-  const val = todaysRounds[roundIndex]
-  multiplierElem.textContent = val + 'x'
-  document.getElementById('modeTag').textContent = 'FUN MODE'
-  renderBets()
-}
-function advanceRound(){
-  // resolve bets for this round automatically: anyone with bet placed before advance wins at that round's multiplier
-  const val = todaysRounds[roundIndex]
-  // resolve bets
-  placedBets.forEach(b=>{
-    if(!b.resolved){
-      b.resolved=true
-      if(val >= b.cashoutMultiplier){
-        // win
-        const win = b.amount * b.cashoutMultiplier
-        users[userKey].balance = (users[userKey].balance||0) + win
-      } else {
-        // lost: bet already deducted on place
-      }
+
+// DEPOSIT REQUEST
+document.getElementById('requestDep').addEventListener('click', ()=>{
+  const amt = Number(document.getElementById('depAmount').value);
+  if(!amt || amt<=0) return alert('Enter valid amount');
+  const dep = JSON.parse(localStorage.getItem('aviator_deposits') || '[]');
+  dep.push({phone: currentUser, amount: amt, note:'player request'});
+  localStorage.setItem('aviator_deposits', JSON.stringify(dep));
+  alert('Deposit requested. Admin approval required.');
+  document.getElementById('depAmount').value='';
+});
+
+// ROUND / STAKING
+document.getElementById('startRound').addEventListener('click', ()=>{
+  const stake = Number(document.getElementById('stakeAmount').value);
+  const users = getUsers();
+  if(!stake || stake <=0 || stake > (users[currentUser].balance || 0)) return alert('Invalid stake');
+  stakedAmount = stake;
+  users[currentUser].balance -= stake;
+  saveUsers(users);
+  updateBalance();
+  currentMultiplier = 1;
+  document.getElementById('cashOut').style.display='inline-block';
+
+  const rounds = getRounds();
+  let roundIndex = 0;
+
+  roundInterval = setInterval(()=>{
+    if(roundIndex < rounds.length){
+      currentMultiplier = rounds[roundIndex];
+      roundIndex++;
+    } else {
+      const incr = 0.01 + Math.random()*0.05;
+      currentMultiplier = parseFloat((currentMultiplier + incr).toFixed(2));
+      rounds.push(currentMultiplier);
+      saveRounds(rounds);
     }
-  })
-  saveUsers()
-  // update display after resolution
-  balanceElem.textContent = fmt(users[userKey].balance||0)
-  // advance index
-  roundIndex = (roundIndex + 1) % todaysRounds.length
-  updateRound()
-  renderRoundsPreview()
+    document.getElementById('multiplier').textContent = currentMultiplier+'x';
+    // random bust check at last multiplier
+    if(roundIndex===rounds.length && Math.random() < 0.01){
+      clearInterval(roundInterval);
+      alert('BUST! You lost your stake.');
+      stakedAmount = 0;
+      document.getElementById('cashOut').style.display='none';
+      loadPastRounds(currentMultiplier);
+    }
+  }, 200);
+});
+
+// CASH OUT
+document.getElementById('cashOut').addEventListener('click', ()=>{
+  clearInterval(roundInterval);
+  const win = parseFloat((stakedAmount * currentMultiplier).toFixed(2));
+  const users = getUsers();
+  users[currentUser].balance += win;
+  saveUsers(users);
+  alert('Cashed out: '+win);
+  stakedAmount = 0;
+  currentMultiplier = 1;
+  document.getElementById('multiplier').textContent='1.00x';
+  document.getElementById('cashOut').style.display='none';
+  updateBalance();
+  loadPastRounds();
+});
+
+// LOAD PAST MULTIPLIERS
+function loadPastRounds(lastMultiplier){
+  const ul = document.getElementById('pastRounds');
+  ul.innerHTML='';
+  const rounds = getRounds();
+  if(lastMultiplier) rounds.push(lastMultiplier);
+  rounds.forEach(r=>{
+    if(r){
+      const li = document.createElement('li');
+      li.textContent = r.toFixed(2)+'x';
+      ul.appendChild(li);
+    }
+  });
+  saveRounds(rounds);
 }
 
-// --- Betting UI ---
-let betAmount = 10.00
-const betAmountElem = document.getElementById('betAmount')
-const btnAmount = document.getElementById('btnAmount')
-function refreshBetUI(){
-  betAmountElem.textContent = Number(betAmount).toFixed(2)
-  btnAmount.textContent = Number(betAmount).toFixed(2)+' KES'
-}
-refreshBetUI()
-document.getElementById('inc').addEventListener('click', ()=>{ betAmount = Math.min(100000, betAmount+10); refreshBetUI() })
-document.getElementById('dec').addEventListener('click', ()=>{ betAmount = Math.max(1, betAmount-10); refreshBetUI() })
-
-document.getElementById('placeBtn').addEventListener('click', ()=>{
-  const bal = users[userKey].balance || 0
-  if(bal < betAmount){ alert('Insufficient balance'); return }
-  // deduct immediately
-  users[userKey].balance = Math.max(0, bal - betAmount)
-  saveUsers()
-  balanceElem.textContent = fmt(users[userKey].balance||0)
-  // place bet for next round and auto cashout at chosen multiplier (for simplicity default 2x)
-  const bet = {id:Date.now()+Math.random(), amount:betAmount, placedAtRound:roundIndex, cashoutMultiplier:2.00, resolved:false}
-  placedBets.push(bet)
-  renderBets()
-})
-
-function renderBets(){
-  betsPlaced.innerHTML = ''
-  if(placedBets.length===0){ betsPlaced.innerHTML = '<div class="muted small">No active bets</div>'; return }
-  placedBets.forEach(b=>{
-    const e = document.createElement('div'); e.style.padding='8px'; e.style.marginBottom='6px'; e.style.background='#0f0f10'; e.style.borderRadius='8px'
-    e.innerHTML = `<div style="display:flex;justify-content:space-between"><div>Bet ${b.amount.toFixed(2)} KES</div><div>${b.resolved? 'Settled': 'Active'}</div></div>
-                   <div style="font-size:13px;color:#bbb">Cashout: ${b.cashoutMultiplier}x</div>`
-    betsPlaced.appendChild(e)
-  })
-}
-
-// start simulation
-startRounds()
-
-// make sure balance is saved periodically
-setInterval(()=> saveUsers(), 5000)
+// INITIALIZATION: autofill last user
+window.addEventListener('load', ()=>{
+  const users = getUsers();
+  const lastPhone = localStorage.getItem('aviator_last_user');
+  if(lastPhone && users[lastPhone]){
+    document.getElementById('phone').value = lastPhone;
+    document.getElementById('password').value = users[lastPhone].password;
+  }
+});
 </script>
 </body>
 </html>
