@@ -1,72 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aviator Login / Deposit</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aviator - Player Panel</title>
 <style>
-body {margin:0; font-family: Arial,sans-serif; background:#0D0D0F; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh;}
-.container{background:#111; padding:30px; border-radius:10px; width:90%; max-width:400px; text-align:center;}
-input,button{padding:10px; margin:10px 0; width:80%; border-radius:5px; border:none;}
-button{cursor:pointer;}
-#message{color:#0f0;}
+ body { font-family: Arial, sans-serif; background: #0d0d0f; color: #fff; margin: 0; padding: 0; }
+ header { padding: 15px; text-align: center; background: #111; font-size: 20px; color: #ff0033; }
+ .container { padding: 20px; }
+ input, button { padding: 10px; margin: 5px 0; width: 100%; border-radius: 5px; }
+ button { cursor: pointer; background: #ff0033; color: #fff; border: none; font-size: 16px; }
+ #aviator-canvas { width: 100%; height: 200px; background: #000; border: 1px solid #fff; margin-top: 15px; }
+ #message { margin-top: 10px; font-size: 16px; color: #0f0; }
 </style>
 </head>
 <body>
+<header>AVIATOR</header>
 <div class="container">
-<h2>Aviator Login / Deposit</h2>
-<input type="text" id="username" placeholder="Username"><br>
-<input type="password" id="password" placeholder="Password"><br>
-<input type="number" id="deposit" placeholder="Deposit Amount (optional)" min="1"><br>
-<input type="text" id="adminCode" placeholder="Admin Code for Deposit (if depositing)"><br>
-<button id="loginBtn">Login / Deposit</button>
-<p id="message"></p>
-</div>
+<h2>Player Panel</h2>
+<div><b>Balance:</b> <span id="balance">0.00</span></div><h3>Deposit</h3>
+<input type="number" id="deposit-amount" placeholder="Deposit Amount" />
+<input type="text" id="deposit-code" placeholder="Admin Code" />
+<button onclick="deposit()">Deposit</button><h3>Stake</h3>
+<input type="number" id="stake-amount" placeholder="Stake Amount" />
+<button onclick="startRound()">Start</button><canvas id="aviator-canvas"></canvas>
 
-<script>
-let users = JSON.parse(localStorage.getItem('aviatorUsers')) || {};
-const loginBtn = document.getElementById('loginBtn');
-const message = document.getElementById('message');
+<div><b>Multiplier:</b> <span id="current-multiplier">1.00</span></div>
+<button onclick="cashOut()">Cash Out</button>
+<div id="message"></div>
+</div><script>
+// ---- STORAGE ----
+let players = JSON.parse(localStorage.getItem('players') || '{}');
+let dailyRounds = JSON.parse(localStorage.getItem('dailyRounds') || '[]');
+let depositCode;
 
-loginBtn.addEventListener('click', () => {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    const depositAmt = parseInt(document.getElementById('deposit').value) || 0;
-    const adminCodeInput = document.getElementById('adminCode').value.trim();
-    
-    if(!username || !password){
-        message.textContent = "Enter username & password";
-        return;
-    }
+// ---- BALANCE ----
+function updateBalanceDisplay() {
+ let p = 'player1';
+ if (!players[p]) players[p] = { balance: 0, frozen: false };
+ document.getElementById('balance').innerText = players[p].balance.toFixed(2);
+ localStorage.setItem('players', JSON.stringify(players));
+}
 
-    if(!users[username]){
-        users[username] = {password: password, balance:0, frozen:false};
-    }
+// ---- DEPOSIT ----
+function deposit() {
+ let amount = parseFloat(document.getElementById('deposit-amount').value);
+ let codeEntered = document.getElementById('deposit-code').value.trim();
+ let adminCode = localStorage.getItem('dynamicDepositCode');
+ if (codeEntered !== adminCode) return alert("Incorrect code!");
+ if (amount <= 0) return alert("Invalid amount");
+ players['player1'].balance += amount;
+ updateBalanceDisplay();
+ alert("Deposit successful!");
+}
 
-    if(users[username].password !== password){
-        message.textContent = "Wrong password";
-        return;
-    }
+// ---- GAME ----
+let currentMultiplier = 1;
+let intervalId;
+let cashoutDone = false;
 
-    if(users[username].frozen){
-        message.textContent = "Account frozen by admin";
-        return;
-    }
+function startRound() {
+ let stake = parseFloat(document.getElementById('stake-amount').value);
+ let p = players['player1'];
+ if (p.frozen) return alert("Account frozen");
+ if (!stake || stake <= 0) return alert("Invalid stake");
+ if (stake > p.balance) return alert("Insufficient balance");
+ p.balance -= stake;
+ updateBalanceDisplay();
+ cashoutDone = false;
 
-    // Handle deposit
-    if(depositAmt > 0){
-        let storedAdminCode = localStorage.getItem('adminCode') || '';
-        if(adminCodeInput !== storedAdminCode){
-            message.textContent = "Invalid admin code for deposit";
-            return;
-        }
-        users[username].balance += depositAmt;
-    }
+ let burst = getCurrentBurst();
 
-    localStorage.setItem('aviatorUsers', JSON.stringify(users));
-    localStorage.setItem('currentUser', username);
-    window.location.href = 'game.html';
-});
-</script>
-</body>
+ currentMultiplier = 1;
+ document.getElementById('current-multiplier').innerText = currentMultiplier.toFixed(2);
+ document.getElementById('message').innerText = "";
+
+ intervalId = setInterval(() => {
+   currentMultiplier += 0.03;
+   document.getElementById('current-multiplier').innerText = currentMultiplier.toFixed(2);
+   if (currentMultiplier >= burst) {
+     clearInterval(intervalId);
+     if (!cashoutDone) document.getElementById('message').innerText = "💥 Burst at ×" + burst;
+   }
+ }, 100);
+}
+
+function getCurrentBurst() {
+ let now = new Date();
+ let key = now.getHours() + ':' + now.getMinutes();
+ let found = dailyRounds.find(r => r.time === key);
+ return found ? found.burst : 2.0;
+}
+
+function cashOut() {
+ if (cashoutDone) return;
+ cashoutDone = true;
+ let stake = parseFloat(document.getElementById('stake-amount').value);
+ let earned = stake * currentMultiplier;
+ players['player1'].balance += earned;
+ updateBalanceDisplay();
+ document.getElementById('message').innerText = "Cashed ×" + currentMultiplier.toFixed(2) + " → " + earned.toFixed(2);
+ clearInterval(intervalId);
+}
+
+// ---- INIT ----
+updateBalanceDisplay();
+</script></body>
 </html>
