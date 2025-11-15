@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aviator</title>
+<style>
+body {margin:0; font-family: Arial, sans-serif; background:#0D0D0F; color:#fff;}
+header {padding:10px; display:flex; justify-content:space-between; background:#111;}
+#balance {color:#0f0; font-weight:bold;}
+#multiplier {font-size:32px; color:#fff; text-align:center; margin:20px 0;}
+#gameContainer{display:flex; flex-wrap:wrap;}
+#history{width:100px; border-right:1px solid #444; padding:10px;}
+#history h3{margin-top:0; color:#ff0033;}
+#planeArea{flex:1; display:flex; flex-direction:column; align-items:center;}
+#plane{width:50px; height:50px; background:#ff0033; clip-path:polygon(50% 0%,0% 100%,100% 100%); margin-top:0; transition:margin-top 0.05s linear;}
+#controls{margin-top:20px;}
+button{padding:10px 20px; margin:5px; border:none; border-radius:5px; cursor:pointer;}
+#startBtn{background:#555; color:#fff;}
+#cashoutBtn{background:#0f0; color:#000;}
+input{padding:10px; width:100px; border-radius:5px; border:none; margin-right:10px;}
+#stakeLabel{margin-bottom:5px;}
+.greenMsg{color:#0f0; margin-top:10px;}
+</style>
+</head>
+<body>
+<header>
+<span>Balance: <span id="balance">0</span></span>
+<button onclick="location.href='index.html'">Logout</button>
+</header>
+<div id="gameContainer">
+<div id="history"><h3>History</h3><div id="historyList"></div></div>
+<div id="planeArea">
+<div id="multiplier">1.00x</div>
+<div id="plane"></div>
+<div id="controls">
+<div id="stakeLabel">Stake Amount:</div>
+<input type="number" id="stakeInput" min="1" value="10">
+<button id="startBtn">Start Round</button>
+<button id="cashoutBtn" disabled>Cash Out</button>
+<div class="greenMsg" id="msg"></div>
+</div>
+</div>
+</div>
+
+<script>
+let currentUser = localStorage.getItem('currentUser');
+if(!currentUser){window.location.href='index.html';}
+let users = JSON.parse(localStorage.getItem('aviatorUsers'))||{};
+let balance = users[currentUser].balance;
+document.getElementById('balance').textContent = balance;
+
+// history
+let historyArr = [];
+const historyList = document.getElementById('historyList');
+function updateHistory(mult){
+  historyArr.unshift(mult.toFixed(2)+'x');
+  if(historyArr.length>15) historyArr.pop();
+  historyList.innerHTML = historyArr.map(h=>'<div>'+h+'</div>').join('');
+}
+
+// game logic
+const multiplierDisplay = document.getElementById('multiplier');
+const plane = document.getElementById('plane');
+const startBtn = document.getElementById('startBtn');
+const cashoutBtn = document.getElementById('cashoutBtn');
+const stakeInput = document.getElementById('stakeInput');
+const msg = document.getElementById('msg');
+
+let running=false;
+let currentMultiplier=1;
+let crashMultiplier=0;
+let interval;
+
+function generateCrash(){
+  let rand=Math.random()*100;
+  if(rand<40) return (1.0 + Math.random()*0.5).toFixed(2); // ×1 friendly
+  else if(rand<75) return (1.5 + Math.random()*1.5).toFixed(2);
+  else if(rand<95) return (3 + Math.random()*7).toFixed(2);
+  else return (10 + Math.random()*40).toFixed(2); // rare ×50
+}
+
+startBtn.addEventListener('click',()=>{
+  if(running) return;
+  let stake = parseInt(stakeInput.value);
+  if(stake > balance){
+      msg.textContent = "Stake cannot exceed balance";
+      return;
+  }
+  if(stake < 1){
+      msg.textContent = "Enter valid stake";
+      return;
+  }
+  msg.textContent = "";
+  running=true;
+  startBtn.disabled=true;
+  cashoutBtn.disabled=false;
+  currentMultiplier=1;
+  multiplierDisplay.textContent='1.00x';
+  plane.style.marginTop='0px';
+  crashMultiplier = parseFloat(generateCrash());
+  interval = setInterval(()=>{
+    currentMultiplier +=0.02;
+    multiplierDisplay.textContent=currentMultiplier.toFixed(2)+'x';
+    plane.style.marginTop = -currentMultiplier*10+'px';
+    if(currentMultiplier>=crashMultiplier){
+      clearInterval(interval);
+      running=false;
+      startBtn.disabled=false;
+      cashoutBtn.disabled=true;
+      updateHistory(currentMultiplier);
+      msg.textContent = "Crashed at "+currentMultiplier.toFixed(2)+"x";
+    }
+  },50);
+});
+
+cashoutBtn.addEventListener('click',()=>{
+  if(!running) return;
+  running=false;
+  clearInterval(interval);
+  let stake = parseInt(stakeInput.value);
+  let win = Math.floor(currentMultiplier*stake);
+  balance += win - stake;
+  users[currentUser].balance = balance;
+  localStorage.setItem('aviatorUsers',JSON.stringify(users));
+  document.getElementById('balance').textContent = balance;
+  updateHistory(currentMultiplier);
+  startBtn.disabled=false;
+  cashoutBtn.disabled=true;
+  msg.textContent = "Cashed out at "+currentMultiplier.toFixed(2)+"x → Won "+win;
+});
+</script>
+</body>
+</html>
