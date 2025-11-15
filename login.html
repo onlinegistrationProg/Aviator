@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Aviator Login</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0d0d0f;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh}
+  .card{width:96%;max-width:420px;background:#111;padding:22px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+  h2{margin:0 0 12px;font-weight:700;color:#ff3344}
+  input,button{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:10px;border:none;font-size:16px}
+  input{background:#222;color:#fff}
+  button{background:#1fbf49;color:#fff;font-weight:700;cursor:pointer}
+  .muted{color:#bbb;font-size:13px;text-align:center;margin-top:8px}
+  #msg{color:#ff6b6b;height:18px;margin-top:6px;text-align:center}
+  .small{font-size:13px;padding:8px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>Aviator — Login</h2>
+
+    <input id="phone" placeholder="Phone Number" inputmode="numeric" />
+    <input id="password" placeholder="Password" type="password" />
+    <button id="loginBtn">LOGIN</button>
+    <p id="msg"></p>
+
+    <hr style="border-color:#222;margin:14px 0">
+
+    <h3 style="color:#fff;margin-bottom:8px">Create account</h3>
+    <input id="rphone" placeholder="Phone Number" inputmode="numeric" />
+    <input id="rpass" placeholder="Password" type="password" />
+    <input id="rpass2" placeholder="Confirm Password" type="password" />
+    <button id="regBtn" class="small">REGISTER</button>
+
+    <p class="muted">After login you'll be taken to player.html</p>
+  </div>
+
+<script>
+  // Utilities
+  function setMsg(t){document.getElementById('msg').textContent=t}
+  function getUsers(){return JSON.parse(localStorage.getItem('aviator_users')||'{}')}
+  function saveUsers(u){localStorage.setItem('aviator_users', JSON.stringify(u))}
+
+  // Register
+  document.getElementById('regBtn').addEventListener('click',()=>{
+    const phone=document.getElementById('rphone').value.trim()
+    const a=document.getElementById('rpass').value
+    const b=document.getElementById('rpass2').value
+    if(!phone||!a){setMsg('Fill all fields');return}
+    if(a!==b){setMsg('Passwords do not match');return}
+    const users=getUsers()
+    if(users[phone]){setMsg('Account exists. Login.');return}
+    users[phone]={password:a,balance:5000} // default balance shown in screenshot
+    saveUsers(users)
+    setMsg('Account created. Please login.')
+  })
+
+  // Login
+  document.getElementById('loginBtn').addEventListener('click',()=>{
+    const phone=document.getElementById('phone').value.trim()
+    const pass=document.getElementById('password').value
+    const users=getUsers()
+    if(!phone||!pass){setMsg('Fill all fields');return}
+    if(users[phone] && users[phone].password===pass){
+      localStorage.setItem('aviator_current', phone)
+      window.location.href='player.html'
+    } else setMsg('Wrong phone or password')
+  })
+
+  // quick demo: if no users exist, create sample account (Riskid Kibet)
+  (function ensureSample(){
+    const users=getUsers()
+    if(Object.keys(users).length===0){
+      users['Kwenik254']={password:'Kwenik254$',balance:5000,displayName:'Riskid Kibet'}
+      saveUsers(users)
+    }
+  })()
+</script>
+</body>
+</html>
