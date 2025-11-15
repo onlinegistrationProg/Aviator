@@ -3,127 +3,135 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Panel</title>
+<title>Aviator Admin</title>
 <style>
-body { margin:0; font-family: Arial, sans-serif; background:#0d0d0f; color:#fff;}
-header{background:#111; padding:10px; text-align:center; color:#ff0033; font-size:24px;}
-.container{padding:20px;}
-table{width:100%; border-collapse: collapse; margin-top:20px;}
-th,td{border:1px solid #fff; padding:8px; text-align:center;}
-th{background:#111;}
-button{padding:5px 10px; margin:2px; border:none; border-radius:5px; cursor:pointer;}
-.approve{background:#00ff33;}
-.block{background:#ff0033;}
-.logout{background:#ff0033; color:#fff; margin-top:20px; padding:10px 20px;}
+body{margin:0;font-family:Arial,sans-serif;background:#0D0D0F;color:#fff;}
+.container{width:90%;max-width:1200px;margin:50px auto;padding:20px;background:#111;border-radius:10px;}
+input,button{padding:6px;margin:3px;border-radius:5px;border:none;}
+button{cursor:pointer;}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th,td{border:1px solid #444;padding:6px;text-align:center;}
+th{background:#222;}
+.editField{width:80px;text-align:center;}
+.approveBtn{background:#28a745;color:#fff;margin-right:5px;}
+.declineBtn{background:#ff0033;color:#fff;}
 </style>
 </head>
 <body>
-<header>Admin Panel</header>
-<div class="container">
 
-<h2>Players</h2>
-<table id="playersTable">
-  <tr>
-    <th>Phone</th><th>Password</th><th>Balance</th><th>Blocked</th><th>Actions</th>
-  </tr>
-</table>
+<div class="container" id="loginDiv">
+<h1>Aviator Admin Login</h1>
+<input type="text" id="adminPhone" placeholder="Phone Number"><br>
+<input type="password" id="adminPass" placeholder="Password"><br>
+<button onclick="adminLogin()">Login</button>
+<div id="loginError" style="color:#ff0033;margin-top:10px;"></div>
+</div>
 
+<div class="container" id="adminPanel" style="display:none;">
+<h1>Aviator Admin Panel</h1>
+
+<!-- Deposit Management -->
 <h2>Deposit Requests</h2>
-<table id="depositsTable">
-  <tr>
-    <th>Phone</th><th>Amount</th><th>Status</th><th>Action</th>
-  </tr>
+<table id="depositTable">
+<thead><tr><th>Player</th><th>Amount</th><th>Action</th></tr></thead>
+<tbody></tbody>
 </table>
 
-<h2>Daily Rounds</h2>
-<table id="roundsTable">
-  <tr>
-    <th>Round</th><th>Crash ×</th><th>Start Time</th><th>Player Stakes</th>
-  </tr>
+<!-- Player Management -->
+<h2>Player Management</h2>
+<table id="playerTable">
+<thead><tr><th>Phone</th><th>Password</th><th>Balance</th><th>Action</th></tr></thead>
+<tbody></tbody>
 </table>
 
-<button class="logout" onclick="logout()">Logout</button>
+<!-- Future Multipliers -->
+<h2>Future Multipliers (Next 24 Hours)</h2>
+<label>Interval (seconds): <input id="intervalInput" type="number" value="60" min="1"></label>
+<button onclick="generatePreciseMultipliers()">Generate Multipliers</button>
+<table id="multiplierTable">
+<thead><tr><th>Time</th><th>Multiplier</th><th>Action</th></tr></thead>
+<tbody></tbody>
+</table>
 </div>
 
 <script>
-let players = JSON.parse(localStorage.getItem("players") || "[]");
-let deposits = JSON.parse(localStorage.getItem("deposits") || "[]");
-let rounds = JSON.parse(localStorage.getItem("dailyRounds") || "[]");
-
-function renderPlayers() {
-  const table = document.getElementById("playersTable");
-  table.innerHTML = `<tr><th>Phone</th><th>Password</th><th>Balance</th><th>Blocked</th><th>Actions</th></tr>`;
-  players.forEach((p, i) => {
-    let row = table.insertRow();
-    row.insertCell(0).textContent = p.phone;
-    row.insertCell(1).textContent = p.password;
-    row.insertCell(2).textContent = p.balance.toFixed(2);
-    row.insertCell(3).textContent = p.blocked ? "Yes" : "No";
-    let actions = row.insertCell(4);
-    let blockBtn = document.createElement("button");
-    blockBtn.textContent = p.blocked ? "Unblock" : "Block";
-    blockBtn.className = "block";
-    blockBtn.onclick = () => toggleBlock(i);
-    actions.appendChild(blockBtn);
-  });
+// ----- Admin Login -----
+const adminCred = { phone:"Kibet Risk", password:"Kwenik254$" };
+function adminLogin(){
+  const phone = document.getElementById('adminPhone').value.trim();
+  const pass = document.getElementById('adminPass').value.trim();
+  if(phone === adminCred.phone && pass === adminCred.password){
+    document.getElementById('loginDiv').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
+    loadPlayers(); loadDeposits(); loadMultipliers();
+  } else { document.getElementById('loginError').textContent="Invalid credentials!"; }
 }
 
-function toggleBlock(i) {
-  players[i].blocked = !players[i].blocked;
-  localStorage.setItem("players", JSON.stringify(players));
-  renderPlayers();
-}
+// ----- Dummy Players -----
+let players=[{phone:"Riskid Kibet",password:"Kwenik254$",balance:500},{phone:"Player2",password:"pass123",balance:200}];
+// ----- Deposit Requests -----
+let deposits=[{player:"Riskid Kibet",amount:100},{player:"Player2",amount:50}];
 
-function renderDeposits() {
-  const table = document.getElementById("depositsTable");
-  table.innerHTML = `<tr><th>Phone</th><th>Amount</th><th>Status</th><th>Action</th></tr>`;
+// Load deposit table
+function loadDeposits(){
+  const tbody=document.querySelector("#depositTable tbody"); tbody.innerHTML="";
   deposits.forEach((d,i)=>{
-    let row = table.insertRow();
-    row.insertCell(0).textContent=d.phone;
-    row.insertCell(1).textContent=d.amount;
-    row.insertCell(2).textContent=d.status;
-    let actionCell = row.insertCell(3);
-    if(d.status==="pending") {
-      let approveBtn=document.createElement("button");
-      approveBtn.textContent="Approve";
-      approveBtn.className="approve";
-      approveBtn.onclick = ()=> approveDeposit(i);
-      actionCell.appendChild(approveBtn);
-    } else { actionCell.textContent="-"; }
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${d.player}</td><td>${d.amount.toFixed(2)}</td>
+                  <td><button class="approveBtn" onclick="approveDeposit(${i})">Approve</button>
+                  <button class="declineBtn" onclick="declineDeposit(${i})">Decline</button></td>`;
+    tbody.appendChild(tr);
   });
 }
 
-function approveDeposit(i) {
-  deposits[i].status="approved";
-  let playerIndex = players.findIndex(p=>p.phone===deposits[i].phone);
-  if(playerIndex>-1) players[playerIndex].balance += deposits[i].amount;
-  localStorage.setItem("players", JSON.stringify(players));
-  localStorage.setItem("deposits", JSON.stringify(deposits));
-  renderPlayers();
-  renderDeposits();
+function approveDeposit(i){
+  const d=deposits[i];
+  const player=players.find(p=>p.phone===d.player); if(player) player.balance+=d.amount;
+  deposits.splice(i,1); loadDeposits(); loadPlayers();
+  alert("Deposit approved for "+d.player);
 }
+function declineDeposit(i){ deposits.splice(i,1); loadDeposits(); alert("Deposit declined."); }
 
-function renderRounds() {
-  const table = document.getElementById("roundsTable");
-  table.innerHTML = `<tr><th>Round</th><th>Crash ×</th><th>Start Time</th><th>Player Stakes</th></tr>`;
-  rounds.forEach(r=>{
-    let row = table.insertRow();
-    row.insertCell(0).textContent = r.round;
-    row.insertCell(1).textContent = r.crash;
-    row.insertCell(2).textContent = r.startTime;
-    let stakes = r.stakes.map(s=>`${s.phone}: ${s.amount} (${s.cashedOut===false?"lost":"cashed"})`).join(", ");
-    row.insertCell(3).textContent = stakes;
+// Load player table
+function loadPlayers(){
+  const tbody=document.querySelector("#playerTable tbody"); tbody.innerHTML="";
+  players.forEach((p,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input class="editField" value="${p.phone}" onchange="updatePlayer(${i},'phone',this.value)"></td>
+                  <td><input class="editField" value="${p.password}" onchange="updatePlayer(${i},'password',this.value)"></td>
+                  <td><input class="editField" value="${p.balance}" type="number" onchange="updatePlayer(${i},'balance',this.value)"></td>
+                  <td><button onclick="removePlayer(${i})">Remove</button></td>`;
+    tbody.appendChild(tr);
   });
 }
+function updatePlayer(i,field,value){ if(field==='balance') value=parseFloat(value); players[i][field]=value; }
+function removePlayer(i){ if(confirm("Remove player "+players[i].phone+"?")){ players.splice(i,1); loadPlayers(); } }
 
-function logout() {
-  localStorage.removeItem("loggedIn");
-  window.location.href="index.html";
+// ----- 24-Hour Multipliers Precise -----
+let multipliers=[];
+function generatePreciseMultipliers(){
+  multipliers=[]; const now=new Date(); const intervalSec=parseInt(document.getElementById('intervalInput').value)||60;
+  const totalSeconds=24*60*60;
+  for(let i=0;i<totalSeconds;i+=intervalSec){
+    const futureTime=new Date(now.getTime()+i*1000);
+    const timeStr=futureTime.getHours().toString().padStart(2,'0')+":"+futureTime.getMinutes().toString().padStart(2,'0')+":"+futureTime.getSeconds().toString().padStart(2,'0');
+    multipliers.push({time:timeStr,multiplier:+(Math.random()*5+1).toFixed(2)});
+  }
+  localStorage.setItem('futureMultipliers',JSON.stringify(multipliers));
+  loadMultipliers();
 }
-
-renderPlayers();
-renderDeposits();
-renderRounds();
+function loadMultipliers(){
+  const tbody=document.querySelector("#multiplierTable tbody"); tbody.innerHTML="";
+  multipliers.forEach((m,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${m.time}</td>
+                  <td><input class="editField" value="${m.multiplier}" step="0.01" min="1" max="100" onchange="updateMultiplier(${i},this.value)"></td>
+                  <td><button onclick="removeMultiplier(${i})">Remove</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function updateMultiplier(i,value){ multipliers[i].multiplier=parseFloat(value); localStorage.setItem('futureMultipliers',JSON.stringify(multipliers)); }
+function removeMultiplier(i){ multipliers.splice(i,1); localStorage.setItem('futureMultipliers',JSON.stringify(multipliers)); loadMultipliers(); }
 </script>
 </body>
 </html>
