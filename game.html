@@ -3,132 +3,176 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aviator</title>
+<title>Aviator Game</title>
 <style>
-body {margin:0; font-family: Arial, sans-serif; background:#0D0D0F; color:#fff;}
-header {padding:10px; display:flex; justify-content:space-between; background:#111;}
-#balance {color:#0f0; font-weight:bold;}
-#multiplier {font-size:32px; color:#fff; text-align:center; margin:20px 0;}
-#gameContainer{display:flex; flex-wrap:wrap;}
-#history{width:100px; border-right:1px solid #444; padding:10px;}
-#history h3{margin-top:0; color:#ff0033;}
-#planeArea{flex:1; display:flex; flex-direction:column; align-items:center;}
-#plane{width:50px; height:50px; background:#ff0033; clip-path:polygon(50% 0%,0% 100%,100% 100%); margin-top:0; transition:margin-top 0.05s linear;}
-#controls{margin-top:20px;}
-button{padding:10px 20px; margin:5px; border:none; border-radius:5px; cursor:pointer;}
-#startBtn{background:#555; color:#fff;}
-#cashoutBtn{background:#0f0; color:#000;}
-input{padding:10px; width:100px; border-radius:5px; border:none; margin-right:10px;}
-#stakeLabel{margin-bottom:5px;}
-.greenMsg{color:#0f0; margin-top:10px;}
+    body {
+        margin: 0;
+        background: #0d0d0f;
+        font-family: Arial, sans-serif;
+        color: white;
+        text-align: center;
+    }
+    header {
+        padding: 10px;
+        background: #111;
+        color: #ff0033;
+        font-size: 24px;
+        font-weight: bold;
+    }
+    #balanceBox {
+        margin-top: 15px;
+        font-size: 20px;
+        background: #222;
+        padding: 10px;
+        display: inline-block;
+        border-radius: 10px;
+    }
+    #crashDisplay {
+        margin-top: 30px;
+        font-size: 60px;
+        font-weight: bold;
+        color: #44ff44;
+    }
+    #busted {
+        color: red;
+        font-size: 38px;
+        margin-top: 10px;
+        display: none;
+    }
+    .controls {
+        margin-top: 40px;
+    }
+    input {
+        width: 200px;
+        padding: 10px;
+        margin: 10px;
+        font-size: 18px;
+        border-radius: 10px;
+        border: none;
+        text-align: center;
+    }
+    button {
+        width: 220px;
+        padding: 12px;
+        margin: 10px;
+        background: #ff0033;
+        border: none;
+        color: white;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    button:disabled {
+        background: grey;
+    }
 </style>
 </head>
 <body>
-<header>
-<span>Balance: <span id="balance">0</span></span>
-<button onclick="location.href='index.html'">Logout</button>
-</header>
-<div id="gameContainer">
-<div id="history"><h3>History</h3><div id="historyList"></div></div>
-<div id="planeArea">
-<div id="multiplier">1.00x</div>
-<div id="plane"></div>
-<div id="controls">
-<div id="stakeLabel">Stake Amount:</div>
-<input type="number" id="stakeInput" min="1" value="10">
-<button id="startBtn">Start Round</button>
-<button id="cashoutBtn" disabled>Cash Out</button>
-<div class="greenMsg" id="msg"></div>
-</div>
-</div>
+
+<header>Avi</header>
+
+<div id="balanceBox">Balance: <span id="balance">0</span> KES</div>
+
+<div id="crashDisplay">1.00×</div>
+<div id="busted">BUSTED!</div>
+
+<div class="controls">
+    <input type="number" id="stake" placeholder="Enter Amount to Stake">
+    <button id="playBtn">PLAY</button>
+    <button id="cashoutBtn" disabled>CASHOUT</button>
 </div>
 
 <script>
-let currentUser = localStorage.getItem('currentUser');
-if(!currentUser){window.location.href='index.html';}
-let users = JSON.parse(localStorage.getItem('aviatorUsers'))||{};
-let balance = users[currentUser].balance;
-document.getElementById('balance').textContent = balance;
+// --- Load balance ---
+let balance = Number(localStorage.getItem("aviator_balance")) || 0;
+document.getElementById("balance").textContent = balance;
 
-// history
-let historyArr = [];
-const historyList = document.getElementById('historyList');
-function updateHistory(mult){
-  historyArr.unshift(mult.toFixed(2)+'x');
-  if(historyArr.length>15) historyArr.pop();
-  historyList.innerHTML = historyArr.map(h=>'<div>'+h+'</div>').join('');
-}
+// Elements
+const crashDisplay = document.getElementById("crashDisplay");
+const bustedTxt = document.getElementById("busted");
+const playBtn = document.getElementById("playBtn");
+const cashoutBtn = document.getElementById("cashoutBtn");
+const stakeInput = document.getElementById("stake");
 
-// game logic
-const multiplierDisplay = document.getElementById('multiplier');
-const plane = document.getElementById('plane');
-const startBtn = document.getElementById('startBtn');
-const cashoutBtn = document.getElementById('cashoutBtn');
-const stakeInput = document.getElementById('stakeInput');
-const msg = document.getElementById('msg');
-
-let running=false;
-let currentMultiplier=1;
-let crashMultiplier=0;
+let currentMultiplier = 1.00;
+let crashPoint = 0;
+let gameRunning = false;
 let interval;
 
-function generateCrash(){
-  let rand=Math.random()*100;
-  if(rand<40) return (1.0 + Math.random()*0.5).toFixed(2); // ×1 friendly
-  else if(rand<75) return (1.5 + Math.random()*1.5).toFixed(2);
-  else if(rand<95) return (3 + Math.random()*7).toFixed(2);
-  else return (10 + Math.random()*40).toFixed(2); // rare ×50
+// Random crash generator (1.00x – 50.00x)
+function generateCrashPoint() {
+    let max = Math.random() < 0.60 ? 5 : Math.random() < 0.90 ? 15 : 50;
+    return (Math.random() * max + 1).toFixed(2);
 }
 
-startBtn.addEventListener('click',()=>{
-  if(running) return;
-  let stake = parseInt(stakeInput.value);
-  if(stake > balance){
-      msg.textContent = "Stake cannot exceed balance";
-      return;
-  }
-  if(stake < 1){
-      msg.textContent = "Enter valid stake";
-      return;
-  }
-  msg.textContent = "";
-  running=true;
-  startBtn.disabled=true;
-  cashoutBtn.disabled=false;
-  currentMultiplier=1;
-  multiplierDisplay.textContent='1.00x';
-  plane.style.marginTop='0px';
-  crashMultiplier = parseFloat(generateCrash());
-  interval = setInterval(()=>{
-    currentMultiplier +=0.02;
-    multiplierDisplay.textContent=currentMultiplier.toFixed(2)+'x';
-    plane.style.marginTop = -currentMultiplier*10+'px';
-    if(currentMultiplier>=crashMultiplier){
-      clearInterval(interval);
-      running=false;
-      startBtn.disabled=false;
-      cashoutBtn.disabled=true;
-      updateHistory(currentMultiplier);
-      msg.textContent = "Crashed at "+currentMultiplier.toFixed(2)+"x";
-    }
-  },50);
-});
+// Start the game
+playBtn.onclick = function () {
+    let stake = Number(stakeInput.value);
 
-cashoutBtn.addEventListener('click',()=>{
-  if(!running) return;
-  running=false;
-  clearInterval(interval);
-  let stake = parseInt(stakeInput.value);
-  let win = Math.floor(currentMultiplier*stake);
-  balance += win - stake;
-  users[currentUser].balance = balance;
-  localStorage.setItem('aviatorUsers',JSON.stringify(users));
-  document.getElementById('balance').textContent = balance;
-  updateHistory(currentMultiplier);
-  startBtn.disabled=false;
-  cashoutBtn.disabled=true;
-  msg.textContent = "Cashed out at "+currentMultiplier.toFixed(2)+"x → Won "+win;
-});
+    if (stake <= 0) {
+        alert("Enter valid stake amount.");
+        return;
+    }
+
+    if (stake > balance) {
+        alert("Insufficient balance.");
+        return;
+    }
+
+    // Deduct stake
+    balance -= stake;
+    localStorage.setItem("aviator_balance", balance);
+    document.getElementById("balance").textContent = balance;
+
+    // Setup game
+    currentMultiplier = 1.00;
+    crashDisplay.textContent = "1.00×";
+    bustedTxt.style.display = "none";
+
+    gameRunning = true;
+    playBtn.disabled = true;
+    cashoutBtn.disabled = false;
+
+    crashPoint = generateCrashPoint();
+
+    interval = setInterval(() => {
+        currentMultiplier = (currentMultiplier + 0.01).toFixed(2);
+        crashDisplay.textContent = currentMultiplier + "×";
+
+        if (currentMultiplier >= crashPoint) {
+            // BUST
+            clearInterval(interval);
+            bustedTxt.style.display = "block";
+            crashDisplay.textContent = crashPoint + "×";
+            gameRunning = false;
+            cashoutBtn.disabled = true;
+            playBtn.disabled = false;
+        }
+    }, 80);
+};
+
+// CASHOUT
+cashoutBtn.onclick = function () {
+    if (!gameRunning) return;
+
+    gameRunning = false;
+    clearInterval(interval);
+
+    let stake = Number(stakeInput.value);
+    let winAmount = Math.floor(stake * currentMultiplier);
+
+    balance += winAmount;
+    localStorage.setItem("aviator_balance", balance);
+    document.getElementById("balance").textContent = balance;
+
+    cashoutBtn.disabled = true;
+    playBtn.disabled = false;
+
+    alert("You cashed out: " + winAmount + " KES");
+};
+
 </script>
+
 </body>
 </html>
