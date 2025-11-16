@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aviator — Player Home</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#0d0d0f;color:#fff;}
+header{background:#111;padding:12px;text-align:center;font-size:18px;}
+.container{padding:16px;}
+.balance{margin:12px 0;font-size:20px;font-weight:700;}
+input,button{padding:10px;border-radius:8px;border:none;margin:6px 0;}
+button{background:#10b981;color:#fff;cursor:pointer;}
+#gameArea{margin-top:16px;background:#111;padding:16px;border-radius:12px;text-align:center;}
+</style>
+</head>
+<body>
+<header>Player Dashboard</header>
+<div class="container">
+<div id="welcome"></div>
+<div class="balance">Balance: <span id="balance">0</span></div>
+
+<h3>Request Deposit</h3>
+<input type="number" id="depositAmount" placeholder="Amount">
+<button id="requestDeposit">Request</button>
+<div id="depMsg" style="color:#ef4444;font-size:13px"></div>
+
+<div id="gameArea">
+<h3>Game</h3>
+<div id="multiplier" style="font-size:30px;">x1.00</div>
+<div id="status"></div>
+</div>
+</div>
+
+<script>
+const RAW_PLAYERS = 'https://raw.githubusercontent.com/onlinegistrationProg/AviatorDB/main/players.json';
+const RAW_MULT = 'https://raw.githubusercontent.com/onlinegistrationProg/AviatorDB/main/multipliers.json';
+
+let player = JSON.parse(localStorage.getItem('player'));
+if(!player){ window.location.href='login.html'; }
+
+document.getElementById('welcome').textContent = 'Welcome '+player.phone;
+document.getElementById('balance').textContent = player.balance;
+
+document.getElementById('requestDeposit').onclick = ()=>{
+  const amt = parseFloat(document.getElementById('depositAmount').value);
+  if(!amt){ document.getElementById('depMsg').textContent='Enter valid amount'; return; }
+  alert('Deposit request sent. Admin will approve it.');
+};
+
+async function loadMultipliers(){
+  const res = await fetch(RAW_MULT+'?t='+Date.now());
+  const mults = await res.json();
+  return mults;
+}
+
+async function runGame(){
+  const mults = await loadMultipliers();
+  let idx = 0;
+  const status = document.getElementById('status');
+  const mulDisplay = document.getElementById('multiplier');
+
+  function nextRound(){
+    const round = mults[idx];
+    let val = 1.00;
+    const interval = 100; // 0.1s increment
+    const step = (parseFloat(round.multiplier)-1)/((round.duration||30)*10);
+
+    status.textContent = `Round starts at ${round.time}`;
+    const timer = setInterval(()=>{
+      val += step;
+      if(val >= round.multiplier){
+        val = round.multiplier;
+        clearInterval(timer);
+        status.textContent = 'Bust!';
+        idx = (idx+1)%mults.length;
+        setTimeout(nextRound,3000);
+      }
+      mulDisplay.textContent = 'x'+val.toFixed(2);
+    },interval);
+  }
+
+  nextRound();
+}
+
+runGame();
+</script>
+</body>
+</html>
